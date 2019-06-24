@@ -1,0 +1,64 @@
+#include <servo.h>
+#include <EEPROM.h> //IDK if this is right
+
+long currentTime = 0;
+long lastTime = 0;
+char reactionStage = 'A';
+
+double aTime = 0 //?
+double bTime = 0 //?
+double cTime = 0 //?
+
+servo pumpServo; //?
+servo liOHServo; //?
+
+void setup()
+{
+Serial.begin(9600);
+
+unsigned long lastTime = //EEPROM (old time)
+}
+
+void loop()
+{
+currentTime = millis() + lastTime;
+updateStage();
+document();
+switch (reactionStage)
+{
+case 'A':
+pump();
+stir(1000);
+break;
+case 'B':
+liOH();
+stir(1000);
+case 'C':
+//I dont know
+
+}
+
+void updateStage()
+{
+if(currentTime <= aTime)
+{
+reactionStage = 'A';
+}
+else if((currentTime > aTime) && (currentTime <= bTime))
+{
+reactionStage = 'B';
+}
+else if((currentTime > bTime) && (currentTime <= cTime))
+{
+reactionStage = 'C';
+}
+}
+
+void document()
+{
+/*
+EEPROM STUFF
+record currentTime
+*/
+}
+
