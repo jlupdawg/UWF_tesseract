@@ -1,0 +1,124 @@
+﻿#
+import time
+import sys
+import RPi.GPIO as GPIO
+
+
+motorPWMPin = 12
+bigServoPWMPin = 32
+smallServoPWMPin = 33
+MAX_PWM = 255
+frequency = 1
+
+
+fileName = "SynthesisStats.txt"
+numStates = 3;
+timeArr = [10000, 30000, 60000]
+stateArr = ['A', 'B', 'C']
+
+
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(motorPWMPin, GPIO.OUT)
+GPIO.setup(bigServoPWMPin, GPIO.OUT)
+GPIO.setup(smallServoPWMPin, GPIO.OUT)
+
+
+
+
+motor = GPIO.PWM(motorPWMPin, frequency)
+bigServo = GPIO.PWM(bigServoPWMPin, frequency)
+smallServo = GPIO.PWM(smallServoPWMPin, frequency)
+
+
+motor.start(0)
+bigServo.start(0)
+smallServo.start(0)
+timeArrOrig = timeArr[:]
+i = 0
+state = 'A'
+currentTime = 0
+startTime =  0
+startTimeDiff = 0
+currentTimeDiff = 0
+def exportData():
+f = open("SynthesisStats.txt", "w")
+f.write(str(state)+'\n')
+f.write(str(startTime)+ '\n')
+f.write(str(currentTime) + '\n')
+f.close()
+def importData():
+global state
+global startTimeDiff
+global currentTimeDiff
+global startTime
+global timeArr
+global timeArrOrig
+startTime = int(round(time.time() * 1000))
+f = open("SynthesisStats.txt", "r")
+state = f.read(1)
+temp = f.readline()
+temp = f.readline()
+startTimeDiff = startTime - int(temp)
+temp = f.readline()
+currentTimeDiff = int(temp)
+if(state == 'A'):
+  startTimeDiff = 0
+f.close()
+
+
+def process(stirTime, stirPower, pumpTime, pumpPower, NaOHTime, NaOHPower):
+motor.ChangeDutyCycle(stirPower)
+time.sleep(stirTime/1000)
+motor.ChangeDutyCycle(0)
+bigServo.ChangeDutyCycle(pumpPower)
+time.sleep(pumpTime/1000)
+bigServo.ChangeDutyCycle(0)
+smallServo.ChangeDutyCycle(NaOHPower)
+time.sleep(NaOHTime/1000)
+smallServo.ChangeDutyCycle(0)
+def checkTime():
+global currentTime
+global stateArr
+global state
+global timeArr
+global i
+global numStates
+currentTime = int(round(time.time() * 1000)) - startTime + currentTimeDiff
+if(currentTime > timeArr[i]):
+  i = i+1
+   if(i == numStates):
+      process(0,0,0,0,0,0)
+      state = 'D'
+      exportData()
+      sys.exit("Synthesis completed")
+  state = stateArr[i]
+  timeArr[i] += (currentTime - timeArrOrig[i-1])
+importData()
+if(state == 'D'):
+sys.exit("Synthesis Already Complete")
+checkTime()
+while(1):
+if(state == 'A'):
+  ##Phase A - Stir/Pump to dissolve Asorbic Acid
+  checkTime()
+  exportData()
+  print("Phase" , state, ": ", currentTime, timeArr[i])
+  process(1000,100,1000,100,0,0)
+elif(state == "B"):
+  ##Phase B - Stir / NaOH Addition
+  checkTime()
+  exportData()
+  print("Phase" , state, ": ", currentTime, timeArr[i])
+  process(1000,100,500,100,500,100)
+elif(state == 'C'):
+  ##Phase C -
+  checkTime()
+  exportData()
+  print("Phase" , state, ": ", currentTime, timeArr[i])
+  process(10000,0,0,0,0,0)
+
+
+motor.stop()
+bigServo.stop()
+smallServo.stop()
+GPIO.cleanup()
